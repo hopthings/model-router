@@ -1,0 +1,14 @@
+{
+  "name": "model-router",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin that classifies turn complexity and routes to the most cost-effective model",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.5.0"
+  }
+}

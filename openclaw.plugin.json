@@ -1,0 +1,7 @@
+{
+  "name": "model-router",
+  "version": "0.1.0",
+  "description": "Classifies turn complexity and routes to the most cost-effective model",
+  "entry": "dist/index.js",
+  "hooks": ["before_model_resolve"]
+}
