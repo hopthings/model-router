@@ -5,10 +5,22 @@ import { translateRequest, translateResponse, responseToSSE } from "./translator
 import { sendRequest } from "./anthropic";
 import { OpenAIRequest, OpenAIMessage } from "./types";
 
+function contentToString(content: OpenAIMessage["content"]): string {
+  if (content === null || content === undefined) return "";
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((p) => p.type === "text")
+      .map((p) => (typeof p.text === "string" ? p.text : ""))
+      .join("");
+  }
+  return String(content);
+}
+
 function getLastUserMessage(messages: OpenAIMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user" && typeof messages[i].content === "string") {
-      return messages[i].content as string;
+    if (messages[i].role === "user") {
+      return contentToString(messages[i].content);
     }
   }
   return "";

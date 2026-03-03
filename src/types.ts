@@ -32,9 +32,15 @@ export interface OpenAIRequest {
   tool_choice?: unknown;
 }
 
+export interface OpenAIContentPart {
+  type: string;
+  text?: string;
+  [key: string]: unknown;
+}
+
 export interface OpenAIMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
+  content?: string | null | OpenAIContentPart[];
   tool_calls?: OpenAIToolCall[];
   tool_call_id?: string;
   name?: string;

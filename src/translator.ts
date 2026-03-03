@@ -11,6 +11,23 @@ import {
   AnthropicTool,
 } from "./types";
 
+// ── Helpers ──
+
+// OpenAI content can be a string, null, or an array of content parts.
+// Normalize to a plain string for cases where we need text.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function contentToString(content: any): string {
+  if (content === null || content === undefined) return "";
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => (typeof p.text === "string" ? p.text : ""))
+      .join("");
+  }
+  return String(content);
+}
+
 // ── Request: OpenAI → Anthropic ──
 
 export function translateRequest(req: OpenAIRequest, model: string): AnthropicRequest {
@@ -20,7 +37,8 @@ export function translateRequest(req: OpenAIRequest, model: string): AnthropicRe
   // Single-pass: extract system, convert messages, group tool results
   for (const msg of req.messages) {
     if (msg.role === "system") {
-      system = system ? system + "\n\n" + (msg.content ?? "") : (msg.content ?? "");
+      const text = contentToString(msg.content);
+      system = system ? system + "\n\n" + text : text;
       continue;
     }
 
@@ -28,7 +46,7 @@ export function translateRequest(req: OpenAIRequest, model: string): AnthropicRe
       const block: AnthropicContentBlock = {
         type: "tool_result",
         tool_use_id: msg.tool_call_id!,
-        content: msg.content ?? "",
+        content: contentToString(msg.content),
       };
 
       // Merge consecutive tool results into one user message
@@ -49,8 +67,9 @@ export function translateRequest(req: OpenAIRequest, model: string): AnthropicRe
       if (msg.tool_calls && msg.tool_calls.length > 0) {
         const blocks: AnthropicContentBlock[] = [];
 
-        if (msg.content) {
-          blocks.push({ type: "text", text: msg.content });
+        const text = contentToString(msg.content);
+        if (text) {
+          blocks.push({ type: "text", text });
         }
 
         for (const tc of msg.tool_calls) {
@@ -70,13 +89,13 @@ export function translateRequest(req: OpenAIRequest, model: string): AnthropicRe
 
         messages.push({ role: "assistant", content: blocks });
       } else {
-        messages.push({ role: "assistant", content: msg.content ?? "" });
+        messages.push({ role: "assistant", content: contentToString(msg.content) });
       }
       continue;
     }
 
     // role === "user"
-    messages.push({ role: "user", content: msg.content ?? "" });
+    messages.push({ role: "user", content: contentToString(msg.content) });
   }
 
   const result: AnthropicRequest = {
