@@ -48,6 +48,9 @@ export function classify(lastMessage: string, config: RouterConfig): ClassifyRes
   if (lastMessage.trim() === "router-test-simple") {
     return { tier: "simple", reason: "test hook" };
   }
+  if (lastMessage.trim() === "router-test-standard") {
+    return { tier: "standard", reason: "test hook" };
+  }
   if (lastMessage.trim() === "router-test-complex") {
     return { tier: "complex", reason: "test hook" };
   }
