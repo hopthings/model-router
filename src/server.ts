@@ -17,6 +17,42 @@ function contentToString(content: OpenAIMessage["content"]): string {
   return String(content);
 }
 
+// Extract the actual user text from OpenClaw's formatted prompt.
+// OpenClaw wraps user messages with metadata blocks like:
+//   Conversation info (untrusted metadata): ```json { ... } ```
+//   <system-reminder>...</system-reminder>
+//   [actual user text]
+function extractUserText(raw: string): string {
+  let text = raw;
+
+  // Strip markdown code blocks (```...```) — OpenClaw metadata is in these
+  text = text.replace(/```[\s\S]*?```/g, "");
+
+  // Strip XML-style tags OpenClaw may inject (<system-reminder>, etc.)
+  text = text.replace(/<[a-z_-]+>[\s\S]*?<\/[a-z_-]+>/gi, "");
+
+  // Strip "Conversation info (untrusted metadata):" prefix line
+  text = text.replace(/^Conversation info\s*\(untrusted metadata\)\s*:\s*/im, "");
+
+  // Strip any remaining "Key: value" header lines at the top (e.g. "Source: telegram")
+  // But stop once we hit a line that doesn't look like a header
+  const lines = text.split("\n");
+  let start = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === "") {
+      start = i + 1;
+      continue;
+    }
+    // Stop at first line that isn't blank or a plausible header
+    break;
+  }
+
+  text = lines.slice(start).join("\n").trim();
+
+  return text || raw.trim();
+}
+
 function getLastUserMessage(messages: OpenAIMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === "user") {
@@ -24,6 +60,11 @@ function getLastUserMessage(messages: OpenAIMessage[]): string {
     }
   }
   return "";
+}
+
+function getLastUserMessageForClassify(messages: OpenAIMessage[]): string {
+  const raw = getLastUserMessage(messages);
+  return extractUserText(raw);
 }
 
 function logRoute(
@@ -81,8 +122,17 @@ async function handleCompletions(
     return;
   }
 
-  // Classify
-  const lastMessage = getLastUserMessage(openaiReq.messages);
+  // Classify — use extracted text (without OpenClaw metadata)
+  const rawMessage = getLastUserMessage(openaiReq.messages);
+  const lastMessage = getLastUserMessageForClassify(openaiReq.messages);
+
+  // Debug: log raw vs extracted so we can verify the extraction works
+  if (rawMessage !== lastMessage) {
+    const rawPreview = rawMessage.slice(0, 80).replace(/\n/g, "\\n");
+    console.log(`[router] raw msg: "${rawPreview}..."`);
+    console.log(`[router] extracted: "${lastMessage.slice(0, 80)}"`);
+  }
+
   let tier: string;
   let reason: string;
   let model: string;
