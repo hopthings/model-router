@@ -31,8 +31,8 @@ function extractUserText(raw: string): string {
   // Strip XML-style tags OpenClaw may inject (<system-reminder>, etc.)
   text = text.replace(/<[a-z_-]+>[\s\S]*?<\/[a-z_-]+>/gi, "");
 
-  // Strip "Conversation info (untrusted metadata):" prefix line
-  text = text.replace(/^Conversation info\s*\(untrusted metadata\)\s*:\s*/im, "");
+  // Strip OpenClaw "(untrusted metadata):" header lines
+  text = text.replace(/^.*?\(untrusted metadata\)\s*:\s*/gim, "");
 
   // Strip any remaining "Key: value" header lines at the top (e.g. "Source: telegram")
   // But stop once we hit a line that doesn't look like a header
