@@ -1,6 +1,6 @@
 import * as http from "http";
 import { loadConfig, getApiKey } from "./config";
-import { classify } from "./classifier";
+import { classifyWithLLM } from "./classifier";
 import { translateRequest, translateResponse, responseToSSE } from "./translator";
 import { sendRequest } from "./anthropic";
 import { OpenAIRequest, OpenAIMessage } from "./types";
@@ -138,7 +138,7 @@ async function handleCompletions(
   let model: string;
 
   try {
-    const result = classify(lastMessage, config);
+    const result = await classifyWithLLM(lastMessage, config, apiKey);
     tier = result.tier;
     reason = result.reason;
     model = config.tiers[result.tier];
