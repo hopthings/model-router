@@ -27,25 +27,39 @@ Your app / OpenClaw (model: router/auto)
   Return to caller
 ```
 
-The proxy accepts requests in **OpenAI format**, classifies the last user message using a fast rule-based classifier (no LLM call), translates the request to **Anthropic format**, forwards it, and translates the response back.
+The proxy accepts requests in **OpenAI format**, classifies the last user message, translates the request to **Anthropic format**, forwards it, and translates the response back.
 
-## Classification rules
+## Classification
 
-Priority order — first match wins:
+Classification uses a three-tier approach:
 
-| # | Rule | Tier | Model |
-|---|------|------|-------|
-| 1 | `/opus` in message | complex | Opus |
-| 2 | `/cheap` in message | simple | Haiku |
-| 3 | Test hook: `router-test-simple` / `router-test-complex` | simple / complex | Haiku / Opus |
-| 4 | Heartbeat / system messages | standard | Sonnet |
-| 5 | Reasoning keywords (prove, theorem, induction, ...) | complex | Opus |
-| 6 | Complexity keywords (refactor, architecture, migration, ...) | complex | Opus |
-| 7 | Tool use keywords (deploy, docker, ssh, curl, ...) | standard | Sonnet |
-| 8 | Short message (< 80 chars) | simple | Haiku |
-| 9 | Default | standard | Sonnet |
+### 1. Rule-based fast path (instant, no API call)
 
-All thresholds and keyword lists are configurable.
+These fire immediately without touching an LLM:
+
+| Rule | Tier | Model |
+|------|------|-------|
+| `/opus` in message | complex | Opus |
+| `/cheap` in message | simple | Haiku |
+| `router-test-simple` / `router-test-standard` / `router-test-complex` | simple / standard / complex | Haiku / Sonnet / Opus |
+| Heartbeat / `[System Message]` | standard | Sonnet |
+
+### 2. Haiku LLM classification (~200-500ms)
+
+For everything else, the proxy sends just the user message to **Claude Haiku** with a short system prompt and asks it to reply with one word: `simple`, `standard`, or `complex`. This gives much better accuracy than keyword matching — Haiku understands intent, not just keywords.
+
+The classification prompt defines the tiers as:
+- **simple**: greetings, short factual questions, trivial lookups, yes/no questions, small typo fixes
+- **standard**: normal coding tasks, bug fixes, moderate features, explanations, code review, single-file changes, tool use
+- **complex**: architecture design, large multi-file refactors, multi-system integration, deep reasoning, long-form writing, formal proofs
+
+Cost is negligible (~$0.0002 per classification). Latency is 200-500ms, unnoticeable against the main model call.
+
+### 3. Keyword fallback
+
+If the Haiku classification call fails (network error, rate limit, etc.), the classifier falls back to keyword matching: reasoning keywords → complex, complexity keywords → complex, tool-use keywords → standard, short messages → simple, default → standard.
+
+Logs show which path was taken: `(test hook)`, `(haiku: complex)`, or `(keyword fallback: default)`.
 
 ## Format translation
 
@@ -221,9 +235,9 @@ Every request logs one line to stdout:
 
 ```
 [router] 13:32:01 "router-test-simple" → simple → claude-haiku-4-5-20251001 (test hook)
-[router] 13:32:15 "Write an article about AI governance" → complex → claude-opus-4-6 (complexity indicators)
-[router] 13:32:30 "hi" → simple → claude-haiku-4-5-20251001 (short message, 2 chars)
-[router] 13:33:00 "check my notion planner" → standard → claude-sonnet-4-20250514 (likely tool use)
+[router] 13:32:15 "Write an article about AI governance" → complex → claude-opus-4-6 (haiku: complex)
+[router] 13:32:30 "hi" → simple → claude-haiku-4-5-20251001 (haiku: simple)
+[router] 13:33:00 "Add Stripe payment integration" → complex → claude-opus-4-6 (haiku: complex)
 ```
 
 When running as a systemd service, view logs with `journalctl -u model-router`.
@@ -234,7 +248,7 @@ When running as a systemd service, view logs with `journalctl -u model-router`.
 model-router/
 ├── src/
 │   ├── server.ts          # HTTP server, single POST endpoint
-│   ├── classifier.ts      # Rule-based complexity classifier
+│   ├── classifier.ts      # Haiku LLM classifier + rule-based fast path + keyword fallback
 │   ├── translator.ts      # OpenAI ↔ Anthropic format translation
 │   ├── anthropic.ts       # Anthropic API client
 │   ├── config.ts          # Config loader
