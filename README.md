@@ -4,6 +4,12 @@ An OpenAI-compatible proxy that classifies each conversation turn by complexity 
 
 No dashboard, no database, no framework, no telemetry. Just classify, route, log.
 
+## Before you start
+
+- **OpenClaw**: This proxy works with OpenClaw 2026.3.2+. [Install OpenClaw first](https://docs.openclaw.ai/installation) if you don't have it.
+- **Anthropic API key**: Sign up at [console.anthropic.com](https://console.anthropic.com) and create an API key.
+- **System access**: You'll need `sudo` to install the systemd service (or run it manually).
+
 ## How it works
 
 ```
