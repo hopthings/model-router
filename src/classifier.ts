@@ -1,58 +1,23 @@
-import { ClassifyResult, RouterConfig, Tier } from "./types";
+import { ClassifyResult, RouterConfig } from "./types";
 
 const TOOL_KEYWORDS = [
-  "exec",
-  "browser",
-  "web_fetch",
-  "web_search",
-  "notion",
-  "wordpress",
-  "wp ",
-  "database",
-  "deploy",
-  "ssh",
-  "kubectl",
-  "docker",
-  "playwright",
-  "puppeteer",
-  "selenium",
-  "api call",
-  "http request",
-  "curl",
-  "fetch(",
+  "exec", "browser", "web_fetch", "web_search", "notion",
+  "wordpress", "wp ", "database", "deploy", "ssh",
+  "kubectl", "docker", "playwright", "puppeteer", "selenium",
+  "api call", "http request", "curl", "fetch(",
 ];
 
 const COMPLEX_KEYWORDS = [
-  "article",
-  "synthesis",
-  "architecture",
-  "refactor",
-  "redesign",
-  "implement",
-  "build me",
-  "full implementation",
-  "comprehensive",
-  "multi-step",
-  "analyze",
-  "compare and contrast",
-  "deep dive",
-  "write a complete",
-  "entire system",
-  "end to end",
-  "migration",
+  "article", "synthesis", "architecture", "refactor", "redesign",
+  "implement", "build me", "full implementation", "comprehensive",
+  "multi-step", "analyze", "compare and contrast", "deep dive",
+  "write a complete", "entire system", "end to end", "migration",
 ];
 
 const REASONING_KEYWORDS = [
-  "prove",
-  "theorem",
-  "formal logic",
-  "step by step",
-  "mathematical proof",
-  "derive",
-  "induction",
-  "contradiction",
-  "formal verification",
-  "axiom",
+  "prove", "theorem", "formal logic", "step by step",
+  "mathematical proof", "derive", "induction", "contradiction",
+  "formal verification", "axiom",
 ];
 
 function matchesRegex(text: string, pattern: string): boolean {
@@ -68,18 +33,7 @@ function containsAny(text: string, keywords: string[]): boolean {
   return keywords.some((kw) => lower.includes(kw.toLowerCase()));
 }
 
-function estimateContextTokens(
-  messages: Array<{ role: string; content: string }>
-): number {
-  // Rough estimate: ~4 chars per token
-  return messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0) / 4;
-}
-
-export function classify(
-  lastMessage: string,
-  messages: Array<{ role: string; content: string }>,
-  config: RouterConfig
-): ClassifyResult {
+export function classify(lastMessage: string, config: RouterConfig): ClassifyResult {
   const { rules, overrides } = config;
 
   // 1. Manual overrides
@@ -90,7 +44,7 @@ export function classify(
     return { tier: "simple", reason: "manual override /cheap" };
   }
 
-  // Phase 1 test hooks
+  // 2. Test hooks
   if (lastMessage.trim() === "router-test-simple") {
     return { tier: "simple", reason: "test hook" };
   }
@@ -98,32 +52,31 @@ export function classify(
     return { tier: "complex", reason: "test hook" };
   }
 
-  // 2. Reasoning indicators → complex
+  // 3. Heartbeat / system messages
+  if (lastMessage.includes("HEARTBEAT") || lastMessage.includes("[System Message]")) {
+    return { tier: "standard", reason: "heartbeat/system" };
+  }
+
+  // 4. Reasoning indicators → complex
   if (containsAny(lastMessage, REASONING_KEYWORDS)) {
     return { tier: "complex", reason: "reasoning indicators" };
   }
 
-  // 3. Complex indicators → complex
+  // 5. Complex indicators → complex
   if (containsAny(lastMessage, COMPLEX_KEYWORDS)) {
     return { tier: "complex", reason: "complexity indicators" };
   }
 
-  // 4. Large context → complex
-  const contextTokens = estimateContextTokens(messages);
-  if (contextTokens > rules.contextTokensMinComplex) {
-    return { tier: "complex", reason: "large context (" + Math.round(contextTokens) + " est. tokens)" };
-  }
-
-  // 5. Tool use likely → floor to standard
+  // 6. Likely tool use → standard
   if (rules.forceStandardIfLikelyToolUse && containsAny(lastMessage, TOOL_KEYWORDS)) {
     return { tier: "standard", reason: "likely tool use" };
   }
 
-  // 6. Short + simple → simple
+  // 7. Short message → simple
   if (lastMessage.length < rules.shortCharsSimple) {
-    return { tier: "simple", reason: "short message (" + lastMessage.length + " chars)" };
+    return { tier: "simple", reason: `short message (${lastMessage.length} chars)` };
   }
 
-  // 7. Default → standard
+  // 8. Default → standard
   return { tier: "standard", reason: "default" };
 }

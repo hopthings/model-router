@@ -3,14 +3,14 @@ import * as path from "path";
 import { RouterConfig } from "./types";
 
 const DEFAULT_CONFIG: RouterConfig = {
+  port: 3456,
   tiers: {
-    simple: "anthropic/claude-haiku-4-5-20251001",
-    standard: "anthropic/claude-sonnet-4-20250514",
-    complex: "anthropic/claude-opus-4-6",
+    simple: "claude-haiku-4-5-20251001",
+    standard: "claude-sonnet-4-20250514",
+    complex: "claude-opus-4-6",
   },
   rules: {
     shortCharsSimple: 80,
-    contextTokensMinComplex: 120000,
     forceStandardIfLikelyToolUse: true,
   },
   overrides: {
@@ -19,24 +19,22 @@ const DEFAULT_CONFIG: RouterConfig = {
   },
 };
 
-let cached: RouterConfig | null = null;
-
-export function loadConfig(pluginDir?: string): RouterConfig {
-  if (cached) return cached;
-
-  const configPath = path.join(pluginDir ?? __dirname, "..", "config.json");
+export function loadConfig(): RouterConfig {
+  const configPath = path.join(__dirname, "..", "config.json");
 
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
     const parsed = JSON.parse(raw);
-    cached = { ...DEFAULT_CONFIG, ...parsed };
+    return { ...DEFAULT_CONFIG, ...parsed };
   } catch {
-    cached = DEFAULT_CONFIG;
+    return DEFAULT_CONFIG;
   }
-
-  return cached!;
 }
 
-export function resetConfigCache(): void {
-  cached = null;
+export function getApiKey(): string {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new Error("ANTHROPIC_API_KEY environment variable is required");
+  }
+  return key;
 }

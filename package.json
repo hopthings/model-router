@@ -1,13 +1,12 @@
 {
   "name": "model-router",
-  "version": "0.1.0",
-  "description": "OpenClaw plugin that classifies turn complexity and routes to the most cost-effective model",
-  "main": "dist/index.js",
+  "version": "0.2.0",
+  "description": "OpenAI-compatible proxy that classifies turn complexity and routes to the most cost-effective Claude model",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "prepublishOnly": "tsc",
-    "postinstall": "tsc"
+    "start": "node dist/server.js",
+    "dev": "tsc --watch"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",

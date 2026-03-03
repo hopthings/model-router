@@ -1,12 +1,12 @@
 {
+  "port": 3456,
   "tiers": {
-    "simple": "anthropic/claude-haiku-4-5-20251001",
-    "standard": "anthropic/claude-sonnet-4-20250514",
-    "complex": "anthropic/claude-opus-4-6"
+    "simple": "claude-haiku-4-5-20251001",
+    "standard": "claude-sonnet-4-20250514",
+    "complex": "claude-opus-4-6"
   },
   "rules": {
     "shortCharsSimple": 80,
-    "contextTokensMinComplex": 120000,
     "forceStandardIfLikelyToolUse": true
   },
   "overrides": {
