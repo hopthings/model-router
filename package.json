@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "prepublishOnly": "tsc",
+    "postinstall": "tsc"
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
